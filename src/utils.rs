@@ -1,5 +1,6 @@
 use std::{env, fs, io};
-
+use std::fs::File;
+use std::io::Read;
 
 ///Func that reads content of file
 pub fn read_file(file_path: &String) -> Result<String, io::Error> {
@@ -15,7 +16,6 @@ pub fn read_env_args() -> Option<(String, String)> {
     }
 
     let file_path = env_args.nth(1).unwrap();
-    let secret_key = env_args.nth(2).unwrap();
-
+    let secret_key = env_args.nth(0).unwrap();
     Some((file_path, secret_key))
 }
