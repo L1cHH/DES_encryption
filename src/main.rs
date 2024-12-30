@@ -2,7 +2,7 @@ mod encryption;
 mod utils;
 
 use std::process::exit;
-use crate::encryption::{do_permutations, split_into_64bits_blocks, TABLE1};
+use crate::encryption::{do_permutations, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
 use crate::utils::{read_env_args, read_file};
 
 fn main() {
@@ -13,15 +13,14 @@ fn main() {
 
             match data_to_encrypt {
                 Ok(data) => {
-                    let blocks = split_into_64bits_blocks(Vec::from(data));
-
-                    let mut blocks_after_perm: Vec<[u8; 8]> = Vec::new();
-                    for block in blocks.iter() {
-                        let mixed_block = do_permutations(&TABLE1, &block);
-                        blocks_after_perm.push(mixed_block);
-
+                    ///Convert bytes string into 64bits blocks, then we are doing permutations with TABLE1
+                    let mut blocks64bits = split_into_64bits_blocks(Vec::from(data));
+                    for mut block in blocks64bits.iter_mut() {
+                        do_permutations(&TABLE1, &mut block);
                     }
 
+                    ///Split 64bits blocks into two 32bits blocks(L and R), then we will mutate them
+                    let blocks32bits: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(blocks64bits);
 
                 }
                 Err(e) => {
