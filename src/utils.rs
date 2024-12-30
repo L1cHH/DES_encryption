@@ -1,6 +1,4 @@
 use std::{env, fs, io};
-use std::fs::File;
-use std::io::Read;
 
 ///Func that reads content of file
 pub fn read_file(file_path: &String) -> Result<String, io::Error> {
