@@ -7,16 +7,15 @@ pub fn read_file(file_path: &String) -> Result<String, io::Error> {
     Ok(file_content)
 }
 
-pub fn read_env_args() -> Option<String> {
+pub fn read_env_args() -> Option<(String, String)> {
     let mut env_args = env::args();
 
-    println!("count: {}", env_args.len());
-
-    if env_args.len() != 2 {
+    if env_args.len() != 3 {
         return None
     }
 
     let file_path = env_args.nth(1).unwrap();
+    let secret_key = env_args.nth(2).unwrap();
 
-    Some(file_path)
+    Some((file_path, secret_key))
 }

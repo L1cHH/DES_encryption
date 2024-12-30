@@ -11,7 +11,7 @@ fn main() {
         exit(1)
     }
 
-    let file_path = read_env_args().unwrap();
+    let (file_path, secret_key) = read_env_args().unwrap();
     let data_to_encrypt = read_file(&file_path);
 
     match data_to_encrypt {
