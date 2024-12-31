@@ -24,6 +24,13 @@ pub static PC1: [usize; 56] = [
     21, 13,  5, 28, 20, 12,  4
 ];
 
+pub static SHIFT_TABLE: [usize; 16] = [
+    1, 1, 2, 2,
+    2, 2, 2, 2,
+    1, 2, 2, 2,
+    2, 2, 2, 1
+];
+
 pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     let mut blocks: Vec<[u8; 8]> = Vec::new();
 
@@ -78,7 +85,7 @@ pub fn permuted_choice1(table: &[usize; 56], secret_key64bits_blocks: Vec<[u8; 8
             let original_byte_position = old_position / 8;
             let original_bit_position = old_position % 8;
 
-            let new_byte_position = new_position / 7;
+            let new_byte_position = new_position / 8;
             let new_bit_position = new_position % 8;
 
             let bit_value = block64bits[original_byte_position] >> (7 - original_bit_position) & 1;
@@ -91,3 +98,24 @@ pub fn permuted_choice1(table: &[usize; 56], secret_key64bits_blocks: Vec<[u8; 8
     secret_key56bits_blocks
 }
 
+pub fn key_as_28bits_values(secret_key56bits_blocks: Vec<[u8; 7]>) -> Vec<(u32, u32)> {
+
+    let mut secret_keys28bits: Vec<(u32, u32)> = Vec::new();
+
+    for secret_key56bits in secret_key56bits_blocks {
+
+        let l : u32 = (secret_key56bits[0] as u32) << 20
+            | (secret_key56bits[1] as u32) << 12
+            | (secret_key56bits[2] as u32) << 4
+            | (secret_key56bits[3] as u32) >> 4;
+
+        let r: u32 = ((secret_key56bits[3] as u32) & 0b00001111) << 24
+            | (secret_key56bits[4] as u32) << 16
+            | (secret_key56bits[5] as u32) << 8
+            | (secret_key56bits[6] as u32);
+
+        secret_keys28bits.push((l, r));
+    }
+
+    secret_keys28bits
+}

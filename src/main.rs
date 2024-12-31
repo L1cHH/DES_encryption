@@ -2,10 +2,19 @@ mod encryption;
 mod utils;
 
 use std::process::exit;
-use crate::encryption::{do_permutations, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
+use crate::encryption::{do_permutations, key_as_28bits_values, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
 use crate::utils::{read_env_args, read_file};
 
 fn main() {
+
+    let byte_array: [u8; 3] = [
+        0b00001111,
+        0b10101111,
+        0b00000000
+    ];
+
+    println!("{:032b}", (byte_array[1] as u32) << 24);
+
     match read_env_args() {
         Some(args) => {
             let (file_path, secret_key) = args;
@@ -27,6 +36,11 @@ fn main() {
 
                     ///secret key must be interpreted as 56bits blocks
                     let secret_key = permuted_choice1(&PC1, secret_key);
+
+                    ///secret key as two 28bits value (L... and R...) needs to create 16 48bits_key
+                    let mut secret_key28bits: Vec<(u32, u32)> = key_as_28bits_values(secret_key);
+
+                    let secret_keys48bits: Vec<[u8; 6]> = Vec::new();
 
                 }
                 Err(e) => {
