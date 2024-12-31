@@ -7,13 +7,14 @@ use crate::utils::{read_env_args, read_file};
 
 fn main() {
 
-    let byte_array: [u8; 3] = [
-        0b00001111,
-        0b10101111,
-        0b00000000
-    ];
+    let byte: u8 = 0b1011_0110;
+    let result: u8 = 0b1011_0101;
+    println!("В ручную: {:08b}", result);
 
-    println!("{:032b}", (byte_array[1] as u32) << 24);
+    let after_left: u8 = 0b1011_0000;
+
+    let after_right: u8 = 0b0000_0101;
+    println!("Програмно: {:08b}", after_left | after_right);
 
     match read_env_args() {
         Some(args) => {
