@@ -2,13 +2,13 @@ mod encryption;
 mod utils;
 
 use std::process::exit;
-use crate::encryption::{do_permutations, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
+use crate::encryption::{do_permutations, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
 use crate::utils::{read_env_args, read_file};
 
 fn main() {
     match read_env_args() {
         Some(args) => {
-            let (file_path, _) = args;
+            let (file_path, secret_key) = args;
             let data_to_encrypt = read_file(&file_path);
 
             match data_to_encrypt {
@@ -21,6 +21,12 @@ fn main() {
 
                     ///Split 64bits blocks into two 32bits blocks(L and R), then we will mutate them
                     let blocks32bits: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(blocks64bits);
+
+                    ///secret key -> 64bits blocks
+                    let secret_key = split_into_64bits_blocks(Vec::from(secret_key));
+
+                    ///secret key must be interpreted as 56bits blocks
+                    let secret_key = permuted_choice1(&PC1, secret_key);
 
                 }
                 Err(e) => {
