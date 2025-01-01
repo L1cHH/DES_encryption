@@ -54,6 +54,80 @@ static E_BIT_SELECTION_TABLE: [usize; 48] = [
     27, 28, 29, 30, 31,  0,
 ];
 
+///TABLE8, used for change bytes from 6bits into 4bits num
+static S_BOX: [[[u8; 16]; 4]; 8] = [
+    [
+        [14,  4, 13,  1,  2, 15, 11,  8,  3, 10,  6, 12,  5,  9,  0,  7],
+        [ 0, 15,  7,  4, 14,  2, 13,  1, 10,  6, 12, 11,  9,  5,  3,  8],
+        [ 4,  1, 14,  8, 13,  6,  2, 11, 15, 12,  9,  7,  3, 10,  5,  0],
+        [15, 12,  8,  2,  4,  9,  1,  7,  5, 11,  3, 14, 10,  0,  6, 13],
+    ],
+    [
+        [15,  1,  8, 14,  6, 11,  3,  4,  9,  7,  2, 13, 12,  0,  5, 10],
+        [ 3, 13,  4,  7, 15,  2,  8, 14, 12,  0,  1, 10,  6,  9, 11,  5],
+        [ 0, 14,  7, 11, 10,  4, 13,  1,  5,  8, 12,  6,  9,  3,  2, 15],
+        [13,  8, 10,  1,  3, 15,  4,  2, 11,  6,  7, 12,  0,  5, 14,  9],
+    ],
+    [
+        [10,  0,  9, 14,  6,  3, 15,  5,  1, 13, 12,  7, 11,  4,  2,  8],
+        [13,  7,  0,  9,  3,  4,  6, 10,  2,  8,  5, 14, 12, 11, 15,  1],
+        [13,  6,  4,  9,  8, 15,  3,  0, 11,  1,  2, 12,  5, 10, 14,  7],
+        [ 1, 10, 13,  0,  6,  9,  8,  7,  4, 15, 14,  3, 11,  5,  2, 12],
+    ],
+    [
+        [ 7, 13, 14,  3,  0,  6,  9, 10,  1,  2,  8,  5, 11, 12,  4, 15],
+        [13,  8, 11,  5,  6, 15,  0,  3,  4,  7,  2, 12,  1, 10, 14,  9],
+        [10,  6,  9,  0, 12, 11,  7, 13, 15,  1,  3, 14,  5,  2,  8,  4],
+        [ 3, 15,  0,  6, 10,  1, 13,  8,  9,  4,  5, 11, 12,  7,  2, 14],
+    ],
+    [
+        [ 2, 12,  4,  1,  7, 10, 11,  6,  8,  5,  3, 15, 13,  0, 14,  9],
+        [14, 11,  2, 12,  4,  7, 13,  1,  5,  0, 15, 10,  3,  9,  8,  6],
+        [ 4,  2,  1, 11, 10, 13,  7,  8, 15,  9, 12,  5,  6,  3,  0, 14],
+        [11,  8, 12,  7,  1, 14,  2, 13,  6, 15,  0,  9, 10,  4,  5,  3],
+    ],
+    [
+        [12,  1, 10, 15,  9,  2,  6,  8,  0, 13,  3,  4, 14,  7,  5, 11],
+        [10, 15,  4,  2,  7, 12,  9,  5,  6,  1, 13, 14,  0, 11,  3,  8],
+        [ 9, 14, 15,  5,  2,  8, 12,  3,  7,  0,  4, 10,  1, 13, 11,  6],
+        [ 4,  3,  2, 12,  9,  5, 15, 10, 11, 14,  1,  7,  6,  0,  8, 13],
+    ],
+    [
+        [ 4, 11,  2, 14, 15,  0,  8, 13,  3, 12,  9,  7,  5, 10,  6,  1],
+        [13,  0, 11,  7,  4,  9,  1, 10, 14,  3,  5, 12,  2, 15,  8,  6],
+        [ 1,  4, 11, 13, 12,  3,  7, 14, 10, 15,  6,  8,  0,  5,  9,  2],
+        [ 6, 11, 13,  8,  1,  4, 10,  7,  9,  5,  0, 15, 14,  2,  3, 12],
+    ],
+    [
+        [13,  2,  8,  4,  6, 15, 11,  1, 10,  9,  3, 14,  5,  0, 12,  7],
+        [ 1, 15, 13,  8, 10,  3,  7,  4, 12,  5,  6, 11,  0, 14,  9,  2],
+        [ 7, 11,  4,  1,  9, 12, 14,  2,  0,  6, 10, 13, 15,  3,  5,  8],
+        [ 2,  1, 14,  7,  4, 10,  8, 13, 15, 12,  9,  0,  3,  5,  6, 11],
+    ],
+];
+
+static TABLE5: [usize; 32] = [
+    15, 6, 19, 20,
+    28, 11, 27, 16,
+    0, 14, 22, 25,
+    4, 17, 30, 9,
+    1, 7, 23, 13,
+    31, 26, 2, 8,
+    18, 12, 29, 5,
+    21, 10, 3, 24,
+];
+
+static FINAL_PERMUTATION_TABLE: [usize; 64] = [
+    39, 7, 47, 15, 55, 23, 63, 31,
+    38, 6, 46, 14, 54, 22, 62, 30,
+    37, 5, 45, 13, 53, 21, 61, 29,
+    36, 4, 44, 12, 52, 20, 60, 28,
+    35, 3, 43, 11, 51, 19, 59, 27,
+    34, 2, 42, 10, 50, 18, 58, 26,
+    33, 1, 41,  9, 49, 17, 57, 25,
+    32, 0, 40,  8, 48, 16, 56, 24,
+];
+
 pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     let mut blocks: Vec<[u8; 8]> = Vec::new();
 
@@ -169,7 +243,7 @@ pub fn get_16_keys(keys_28bits_values: Vec<(u32, u32)>) -> HashMap<usize, Vec<[u
 
     for (index, mut key) in keys_28bits_values.into_iter().enumerate() {
         let keys = get_48bits_keys(&mut key, 16);
-        secret_keys_by_index.insert(index + 1, keys);
+        secret_keys_by_index.insert(index, keys);
     }
 
     secret_keys_by_index
@@ -216,7 +290,7 @@ fn into_48bits_key(key_56bits: [u8; 7]) -> [u8; 6] {
     key48bits
 }
 
-pub fn r_to_48bits(prev_r: [u8; 4]) -> [u8; 6] {
+fn r_to_48bits(prev_r: [u8; 4]) -> [u8; 6] {
     let mut new_r: [u8; 6] = [0u8; 6];
 
     for (new_position, old_position) in E_BIT_SELECTION_TABLE.iter().enumerate() {
@@ -270,4 +344,135 @@ fn split_into_groups(xor_result: u64) -> [u8; 8] {
     }
 
     groups_by_6bits
+}
+
+fn groups_by_6bits_into_32bits(groups: [u8; 8]) -> [u8; 4] {
+
+    let mut final_value = [0u8; 4];
+    let mut final_32bits_value = 0u32;
+    let mut shift:usize = 24;
+
+    for (s_box_index, byte) in groups.into_iter().enumerate() {
+
+        let needed_s = S_BOX[s_box_index];
+
+        let number_of_string = (byte & 1 | (byte >> 4 & 2u8)) as usize;
+        let number_of_column = ((byte & 0b0001_1110) >> 1) as usize;
+
+        let needed_string = needed_s[number_of_string];
+        let needed_4bits = needed_string[number_of_column] << 4;
+
+        final_32bits_value |= (needed_4bits as u32) << shift;
+
+        shift -= 4;
+    }
+
+
+    final_value[0] = ((final_32bits_value >> 24) & 0b1111_1111u32) as u8;
+    final_value[1] = ((final_32bits_value >> 16) & 0b1111_1111u32) as u8;
+    final_value[2] = ((final_32bits_value >> 8) & 0b1111_1111u32) as u8;
+    final_value[3] = (final_32bits_value & 0b1111_1111u32) as u8;
+
+    final_value
+}
+
+pub fn permute_32bits_r(key: [u8; 4]) -> [u8; 4] {
+    let mut new_key = [0u8; 4];
+
+    for (new_position, old_position) in TABLE5.iter().enumerate() {
+        let original_byte_position = old_position / 8;
+        let original_bit_position = old_position % 8;
+
+        let new_byte_position = new_position / 8;
+        let new_bit_position = new_position % 8;
+
+        let bit_value = key[original_byte_position] >> (7 - original_bit_position) & 1;
+
+        new_key[new_byte_position] |= bit_value << (7 - new_bit_position);
+    }
+
+    new_key
+}
+
+fn xor_left_and_right(left: [u8; 4], result_r: [u8; 4]) -> [u8; 4] {
+    let mut final_r = [0u8; 4];
+
+    for step in 0..3 {
+        final_r[step] = left[step] ^ result_r[step]
+    }
+
+    final_r
+}
+
+///Takes old L and R, returns L + 1, R + 1, until L15 and R15
+pub fn do_round(mut old_l: &mut [u8; 4], mut old_r: &mut [u8; 4], secret_key: [u8; 6]) {
+
+    ///Expand right part to 48 bits
+    let r48bits = r_to_48bits(*old_r);
+
+    ///After xor secret key and r48bits
+    let r48bits_after_xor = r_xor_48bits_key(r48bits, secret_key);
+
+    ///Split into 8 groups by 6bits
+    let groups_by_6bits = into_groups_by_6bits(r48bits_after_xor);
+
+    ///Concat into 32 bits by S_BOX table
+    let r32bits = groups_by_6bits_into_32bits(groups_by_6bits);
+
+    ///Permute by Table5
+    let r32bits_permuted = permute_32bits_r(r32bits);
+
+    ///Xor left part and mutated right part
+    let final_r = xor_left_and_right(*old_l, r32bits_permuted);
+
+    *old_l = *old_r;
+    *old_r = final_r;
+}
+
+pub fn encrypt(data_to_encrypt: Vec<([u8; 4], [u8; 4])>, secret_keys48bits: &HashMap<usize, Vec<[u8; 6]>>) -> Vec<[u8; 8]> {
+    let mut encrypted_data_blocks: Vec<[u8; 8]> = Vec::new();
+
+    for (block_index, mut data_block) in data_to_encrypt.into_iter().enumerate() {
+
+        for step in 0..16 {
+            let secret_key = secret_keys48bits.get(&block_index).unwrap().get(step).unwrap();
+
+            do_round(&mut data_block.0, &mut data_block.1, *secret_key);
+        }
+
+        ///Swap L and R, then concatenate to 64 bits
+
+        let mut empty_block = [0u8; 8];
+        empty_block[0] = data_block.1[0];
+        empty_block[1] = data_block.1[1];
+        empty_block[2] = data_block.1[2];
+        empty_block[3] = data_block.1[3];
+
+        empty_block[4] = data_block.0[0];
+        empty_block[5] = data_block.0[1];
+        empty_block[6] = data_block.0[2];
+        empty_block[7] = data_block.0[3];
+
+        encrypted_data_blocks.push(last_permutation(empty_block));
+    }
+
+    encrypted_data_blocks
+}
+
+fn last_permutation(block64bits: [u8; 8]) -> [u8; 8] {
+    let mut new_block: [u8; 8] = [0u8; 8];
+
+    for (new_position, old_position) in FINAL_PERMUTATION_TABLE.iter().enumerate() {
+        let original_byte_position = old_position / 8;
+        let original_bit_position = old_position % 8;
+
+        let new_byte_position = new_position / 8;
+        let new_bit_position = new_position % 8;
+
+        let bit_value = block64bits[original_byte_position] >> (7 - original_bit_position) & 1;
+
+        new_block[new_byte_position] |= bit_value << (7 - new_bit_position)
+    }
+
+    new_block
 }

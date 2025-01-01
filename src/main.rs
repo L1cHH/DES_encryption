@@ -3,12 +3,13 @@ mod utils;
 
 use std::collections::HashMap;
 use std::process::exit;
-use crate::encryption::{do_permutations, get_16_keys, key_as_28bits_values, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
+use crate::encryption::{do_permutations, encrypt, get_16_keys, key_as_28bits_values, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
 use crate::utils::{read_env_args, read_file};
 
 fn main() {
 
     match read_env_args() {
+
         Some(args) => {
             let (file_path, secret_key) = args;
             let data_to_encrypt = read_file(&file_path);
@@ -35,7 +36,9 @@ fn main() {
 
                     let secret_keys48bits: HashMap<usize, Vec<[u8; 6]>> = get_16_keys(secret_key28bits);
 
-                    println!("16 keys: {:?}", secret_keys48bits)
+                    let encrypted_blocks = encrypt(blocks32bits.clone(), &secret_keys48bits);
+
+                    println!("16 keys: {:?}", encrypted_blocks);
 
                 }
                 Err(e) => {
