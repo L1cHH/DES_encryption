@@ -17,3 +17,10 @@ pub fn read_env_args() -> Option<(String, String)> {
     let secret_key = env_args.nth(0).unwrap();
     Some((file_path, secret_key))
 }
+
+pub fn vec_to_string(vec: Vec<[u8; 8]>) -> String {
+    vec.into_iter()
+        .flat_map(|arr| arr.into_iter())
+        .map(|byte| byte as char) // Преобразование каждого байта в символ
+        .collect()
+}

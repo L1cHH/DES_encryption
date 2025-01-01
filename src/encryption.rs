@@ -134,7 +134,7 @@ fn split_data_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     for block in bytes_string.chunks(8) {
         let mut new_block: [u8; 8] = [0u8; 8];
         let block_len = block.len();
-        new_block[8-block_len..].copy_from_slice(block);
+        new_block[..block_len].copy_from_slice(block);
         blocks.push(new_block);
     }
     blocks
@@ -424,16 +424,34 @@ fn do_round(old_l: &mut [u8; 4], old_r: &mut [u8; 4], secret_key: [u8; 6]) {
     *old_r = final_r;
 }
 
+fn last_permutation(block64bits: [u8; 8]) -> [u8; 8] {
+    let mut new_block: [u8; 8] = [0u8; 8];
+
+    for (new_position, old_position) in FINAL_PERMUTATION_TABLE.iter().enumerate() {
+        let original_byte_position = old_position / 8;
+        let original_bit_position = old_position % 8;
+
+        let new_byte_position = new_position / 8;
+        let new_bit_position = new_position % 8;
+
+        let bit_value = block64bits[original_byte_position] >> (7 - original_bit_position) & 1;
+
+        new_block[new_byte_position] |= bit_value << (7 - new_bit_position)
+    }
+
+    new_block
+}
+
 /// This function encrypt the given data by providing 64bits secret key.
 ///
 /// # Returns
 /// * `Vec<[u8; 8]>` - Encrypted data as vec of 64bits blocks.
-/// * `([u8; 4], [u8; 4])` - Initial L and R, this needs to decrypt data in the future.
+/// * `Vec<([u8; 4], [u8; 4])>` - Initial L's and R's, this needs to decrypt data in the future.
 /// * `[[u8; 6]; 16]` - Formed 16 secret keys, this also needs to decrypt data in the future.
 pub fn encrypt(data_to_encrypt: String, secret_key: String)
     -> (
         Vec<[u8; 8]>,
-        ([u8; 4], [u8; 4]),
+        Vec<([u8; 4], [u8; 4])>,
         [[u8; 6]; 16]
     )
 {
@@ -448,7 +466,7 @@ pub fn encrypt(data_to_encrypt: String, secret_key: String)
     let l_and_r: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(blocks64bits);
 
     //Needs for decrypting data
-    let initial_l_and_r = l_and_r[0];
+    let initial_l_and_r= l_and_r.clone();
 
     //secret key -> 64bits blocks
     let secret_key_64bits = key_into_64bits(Vec::from(secret_key));
@@ -494,20 +512,40 @@ pub fn encrypt(data_to_encrypt: String, secret_key: String)
     (encrypted_data_blocks, initial_l_and_r, copy_of_secret_keys)
 }
 
-fn last_permutation(block64bits: [u8; 8]) -> [u8; 8] {
-    let mut new_block: [u8; 8] = [0u8; 8];
+pub fn decrypt(l_and_r: Vec<([u8; 4], [u8; 4])>, secret_keys: [[u8; 6]; 16]) -> Vec<[u8; 8]> {
 
-    for (new_position, old_position) in FINAL_PERMUTATION_TABLE.iter().enumerate() {
-        let original_byte_position = old_position / 8;
-        let original_bit_position = old_position % 8;
+    let mut decrypted_data_blocks: Vec<[u8; 8]> = Vec::new();
 
-        let new_byte_position = new_position / 8;
-        let new_bit_position = new_position % 8;
+    for mut data_block in l_and_r.into_iter() {
 
-        let bit_value = block64bits[original_byte_position] >> (7 - original_bit_position) & 1;
+        let mut num_of_key = 15;
 
-        new_block[new_byte_position] |= bit_value << (7 - new_bit_position)
+        for step in 0..16 {
+            let secret_key = &secret_keys[num_of_key];
+
+            do_round(&mut data_block.0, &mut data_block.1, *secret_key);
+
+            if num_of_key > 0 {
+                num_of_key -= 1;
+            }
+        }
+
+        //Swap L and R, then concatenate to 64 bits
+
+        let mut empty_block = [0u8; 8];
+        empty_block[0] = data_block.1[0];
+        empty_block[1] = data_block.1[1];
+        empty_block[2] = data_block.1[2];
+        empty_block[3] = data_block.1[3];
+
+        empty_block[4] = data_block.0[0];
+        empty_block[5] = data_block.0[1];
+        empty_block[6] = data_block.0[2];
+        empty_block[7] = data_block.0[3];
+
+        decrypted_data_blocks.push(last_permutation(empty_block));
     }
 
-    new_block
+    decrypted_data_blocks
 }
+
