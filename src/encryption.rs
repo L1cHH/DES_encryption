@@ -1,4 +1,4 @@
-
+use std::collections::HashMap;
 
 ///This table used for first permutations after splitting initial bytes into blocks
 pub static TABLE1: [usize; 64] = [
@@ -32,12 +32,12 @@ pub static SHIFT_TABLE: [usize; 16] = [
 ];
 
 static PC2_TABLE: [usize; 48] = [
-    14, 17, 11, 24,  1,  5,  3, 28,
-    15,  6, 21, 10, 23, 19, 12,  4,
-    26,  8, 16,  7, 27, 20, 13,  2,
-    41, 52, 31, 37, 47, 55, 30, 40,
-    51, 45, 33, 48, 44, 49, 39, 56,
-    34, 53, 46, 42, 50, 36, 29, 32,
+    13, 16, 10, 23,  0,  4,  2, 27,
+    14,  5, 20,  9, 22, 18, 11,  3,
+    25,  7, 15,  6, 26, 19, 12,  1,
+    40, 51, 30, 36, 46, 54, 29, 39,
+    50, 44, 32, 47, 43, 48, 38, 55,
+    33, 52, 45, 41, 49, 35, 28, 31,
 ];
 
 pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
@@ -146,15 +146,19 @@ pub fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
     key56bits
 }
 
-pub fn get_16_keys(keys_28bits_values: Vec<(u32, u32)>) -> Vec<[u8; 6]> {
+pub fn get_16_keys(keys_28bits_values: Vec<(u32, u32)>) -> HashMap<usize, Vec<[u8; 6]>> {
 
-    let mut secret_keys: Vec<[u8; 6]> = Vec::new();
+    ///Our secret key is likely to be more than 1 64bits block, so in this case
+    ///there will be 16secret keys for every 64bits block (by 64bits block I mean
+    ///our secret key (string) has more than 8 bytes in size)
+    let mut secret_keys_by_index: HashMap<usize, Vec<[u8; 6]>> = HashMap::new();
 
-    for key in keys_28bits_values {
-
+    for (index, mut key) in keys_28bits_values.into_iter().enumerate() {
+        let keys = get_48bits_keys(&mut key, 16);
+        secret_keys_by_index.insert(index + 1, keys);
     }
 
-    secret_keys
+    secret_keys_by_index
 }
 
 
@@ -183,7 +187,8 @@ fn get_48bits_keys(secret_key_28bits: &mut (u32, u32), amount_keys_to_generate: 
 fn into_48bits_key(key_56bits: [u8; 7]) -> [u8; 6] {
     let mut key48bits: [u8; 6] = [0u8; 6];
 
-    for (new_position, old_position) in PC2_TABLE.iter().enumerate() {
+    for (new_position, mut old_position) in PC2_TABLE.iter().enumerate() {
+
         let original_byte_position = old_position / 8;
         let original_bit_position = old_position % 8;
 
