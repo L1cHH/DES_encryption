@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 ///This table used for first permutations after splitting initial bytes into blocks
 pub static TABLE1: [usize; 64] = [
     57, 49, 41, 33, 25, 17, 9, 1,
@@ -128,7 +126,7 @@ static FINAL_PERMUTATION_TABLE: [usize; 64] = [
     32, 0, 40,  8, 48, 16, 56, 24,
 ];
 
-pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
+pub fn split_data_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     let mut blocks: Vec<[u8; 8]> = Vec::new();
 
     for block in bytes_string.chunks(8) {
@@ -138,6 +136,21 @@ pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
         blocks.push(new_block);
     }
     blocks
+}
+
+pub fn key_into_64bits(bytes_string: Vec<u8>) -> [u8; 8] {
+
+    if bytes_string.len() > 8 {
+        eprintln!("Secret key cant be more than 64bits in size")
+    }
+
+    let mut key_64bits: [u8; 8] = [0u8; 8];
+
+    for block in bytes_string.chunks(8) {
+        let block_len = block.len();
+        key_64bits[8-block_len..].copy_from_slice(block);
+    }
+    key_64bits
 }
 
 pub fn split_into_32bits_blocks(blocks64bits: Vec<[u8; 8]>) -> Vec<([u8; 4], [u8; 4])> {
@@ -153,10 +166,10 @@ pub fn split_into_32bits_blocks(blocks64bits: Vec<[u8; 8]>) -> Vec<([u8; 4], [u8
     blocks32bits
 }
 
-pub fn do_permutations(table: &[usize; 64], block: &mut [u8; 8]) {
+pub fn do_permutations(block: &mut [u8; 8]) {
 
     let mut new_block: [u8; 8] = [0u8; 8];
-    for (new_position, old_position) in table.iter().enumerate() {
+    for (new_position, old_position) in TABLE1.iter().enumerate() {
         let original_byte_position = old_position / 8;
         let original_bit_position = old_position % 8;
 
@@ -170,51 +183,39 @@ pub fn do_permutations(table: &[usize; 64], block: &mut [u8; 8]) {
     block[0..].copy_from_slice(&new_block);
 }
 
-pub fn permuted_choice1(table: &[usize; 56], secret_key64bits_blocks: Vec<[u8; 8]>) -> Vec<[u8; 7]> {
-    let mut secret_key56bits_blocks: Vec<[u8; 7]> = Vec::new();
+pub fn permuted_choice1(secret_key64bits: [u8; 8]) -> [u8; 7] {
 
-    for block64bits in secret_key64bits_blocks {
+    let mut key_56bits = [0u8; 7];
 
-        let mut new_56bits_block = [0u8; 7];
+    for (new_position, old_position) in PC1.iter().enumerate() {
 
-        for (new_position, old_position) in table.iter().enumerate() {
+        let original_byte_position = old_position / 8;
+        let original_bit_position = old_position % 8;
 
-            let original_byte_position = old_position / 8;
-            let original_bit_position = old_position % 8;
+        let new_byte_position = new_position / 8;
+        let new_bit_position = new_position % 8;
 
-            let new_byte_position = new_position / 8;
-            let new_bit_position = new_position % 8;
+        let bit_value = secret_key64bits[original_byte_position] >> (7 - original_bit_position) & 1;
 
-            let bit_value = block64bits[original_byte_position] >> (7 - original_bit_position) & 1;
+        key_56bits[new_byte_position] |= bit_value << (7 - new_bit_position)
 
-            new_56bits_block[new_byte_position] |= bit_value << (7 - new_bit_position)
-
-        }
-        secret_key56bits_blocks.push(new_56bits_block);
     }
-    secret_key56bits_blocks
+    key_56bits
 }
 
-pub fn key_as_28bits_values(secret_key56bits_blocks: Vec<[u8; 7]>) -> Vec<(u32, u32)> {
+pub fn key_as_28bits_values(secret_key56bits: [u8; 7]) -> (u32, u32) {
 
-    let mut secret_keys28bits: Vec<(u32, u32)> = Vec::new();
+    let l : u32 = (secret_key56bits[0] as u32) << 20
+        | (secret_key56bits[1] as u32) << 12
+        | (secret_key56bits[2] as u32) << 4
+        | (secret_key56bits[3] as u32) >> 4;
 
-    for secret_key56bits in secret_key56bits_blocks {
+    let r: u32 = ((secret_key56bits[3] as u32) & 0b00001111) << 24
+        | (secret_key56bits[4] as u32) << 16
+        | (secret_key56bits[5] as u32) << 8
+        | (secret_key56bits[6] as u32);
 
-        let l : u32 = (secret_key56bits[0] as u32) << 20
-            | (secret_key56bits[1] as u32) << 12
-            | (secret_key56bits[2] as u32) << 4
-            | (secret_key56bits[3] as u32) >> 4;
-
-        let r: u32 = ((secret_key56bits[3] as u32) & 0b00001111) << 24
-            | (secret_key56bits[4] as u32) << 16
-            | (secret_key56bits[5] as u32) << 8
-            | (secret_key56bits[6] as u32);
-
-        secret_keys28bits.push((l, r));
-    }
-
-    secret_keys28bits
+    (l, r)
 }
 
 pub fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
@@ -234,35 +235,19 @@ pub fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
     key56bits
 }
 
-pub fn get_16_keys(keys_28bits_values: Vec<(u32, u32)>) -> HashMap<usize, Vec<[u8; 6]>> {
-
-    ///Our secret key is likely to be more than 1 64bits block, so in this case
-    ///there will be 16secret keys for every 64bits block (by 64bits block I mean
-    ///our secret key (string) has more than 8 bytes in size)
-    let mut secret_keys_by_index: HashMap<usize, Vec<[u8; 6]>> = HashMap::new();
-
-    for (index, mut key) in keys_28bits_values.into_iter().enumerate() {
-        let keys = get_48bits_keys(&mut key, 16);
-        secret_keys_by_index.insert(index, keys);
-    }
-
-    secret_keys_by_index
-}
-
-
-fn get_48bits_keys(secret_key_28bits: &mut (u32, u32), amount_keys_to_generate: i8) -> Vec<[u8; 6]> {
+pub fn get_16_keys(mut keys_28bits_values: (u32, u32)) -> Vec<[u8; 6]> {
 
     let mut keys = Vec::new();
 
-    for index_shift in 0..amount_keys_to_generate {
+    for index_shift in 0..16 {
         let shift_value = SHIFT_TABLE[index_shift as usize];
-        let first_28bits = secret_key_28bits.0;
-        let second_28bits = secret_key_28bits.1;
+        let first_28bits = keys_28bits_values.0;
+        let second_28bits = keys_28bits_values.1;
 
         let new_first_28bits = first_28bits << shift_value | first_28bits >> (8 - shift_value);
         let new_second_28bits = second_28bits << shift_value | second_28bits >> (8 - shift_value);
-        secret_key_28bits.0 = new_first_28bits;
-        secret_key_28bits.1 = new_second_28bits;
+        keys_28bits_values.0 = new_first_28bits;
+        keys_28bits_values.1 = new_second_28bits;
 
         let key_56bits: [u8; 7] = key_as_56bits_value((new_first_28bits, new_second_28bits));
         let key_48bits: [u8; 6] = into_48bits_key(key_56bits);
@@ -351,6 +336,7 @@ fn groups_by_6bits_into_32bits(groups: [u8; 8]) -> [u8; 4] {
     let mut final_value = [0u8; 4];
     let mut final_32bits_value = 0u32;
     let mut shift:usize = 24;
+    let mut bytes = [0u8; 8];
 
     for (s_box_index, byte) in groups.into_iter().enumerate() {
 
@@ -362,10 +348,16 @@ fn groups_by_6bits_into_32bits(groups: [u8; 8]) -> [u8; 4] {
         let needed_string = needed_s[number_of_string];
         let needed_4bits = needed_string[number_of_column] << 4;
 
-        final_32bits_value |= (needed_4bits as u32) << shift;
-
-        shift -= 4;
+        bytes[s_box_index] = needed_4bits;
     }
+    final_32bits_value = (bytes[0] as u32) << 24
+        | (bytes[1] as u32) << 20
+        | (bytes[2] as u32) << 16
+        | (bytes[3] as u32) << 12
+        | (bytes[4] as u32) << 8
+        | (bytes[5] as u32) << 4
+        | (bytes[6] as u32) << 0
+        | (bytes[7] >> 4) as u32;
 
 
     final_value[0] = ((final_32bits_value >> 24) & 0b1111_1111u32) as u8;
@@ -429,13 +421,13 @@ pub fn do_round(mut old_l: &mut [u8; 4], mut old_r: &mut [u8; 4], secret_key: [u
     *old_r = final_r;
 }
 
-pub fn encrypt(data_to_encrypt: Vec<([u8; 4], [u8; 4])>, secret_keys48bits: &HashMap<usize, Vec<[u8; 6]>>) -> Vec<[u8; 8]> {
+pub fn encrypt(data_to_encrypt: Vec<([u8; 4], [u8; 4])>, secret_keys48bits: &Vec<[u8; 6]>) -> Vec<[u8; 8]> {
     let mut encrypted_data_blocks: Vec<[u8; 8]> = Vec::new();
 
     for (block_index, mut data_block) in data_to_encrypt.into_iter().enumerate() {
 
         for step in 0..16 {
-            let secret_key = secret_keys48bits.get(&block_index).unwrap().get(step).unwrap();
+            let secret_key = &secret_keys48bits[0];
 
             do_round(&mut data_block.0, &mut data_block.1, *secret_key);
         }
