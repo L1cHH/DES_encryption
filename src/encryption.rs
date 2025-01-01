@@ -1,3 +1,5 @@
+use std::process::{exit};
+
 ///This table used for first permutations after splitting initial bytes into blocks
 pub static TABLE1: [usize; 64] = [
     57, 49, 41, 33, 25, 17, 9, 1,
@@ -126,7 +128,7 @@ static FINAL_PERMUTATION_TABLE: [usize; 64] = [
     32, 0, 40,  8, 48, 16, 56, 24,
 ];
 
-pub fn split_data_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
+fn split_data_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     let mut blocks: Vec<[u8; 8]> = Vec::new();
 
     for block in bytes_string.chunks(8) {
@@ -138,10 +140,11 @@ pub fn split_data_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
     blocks
 }
 
-pub fn key_into_64bits(bytes_string: Vec<u8>) -> [u8; 8] {
+fn key_into_64bits(bytes_string: Vec<u8>) -> [u8; 8] {
 
     if bytes_string.len() > 8 {
-        eprintln!("Secret key cant be more than 64bits in size")
+        eprintln!("Secret key cant be more than 64bits in size");
+        exit(1)
     }
 
     let mut key_64bits: [u8; 8] = [0u8; 8];
@@ -153,12 +156,13 @@ pub fn key_into_64bits(bytes_string: Vec<u8>) -> [u8; 8] {
     key_64bits
 }
 
-pub fn split_into_32bits_blocks(blocks64bits: Vec<[u8; 8]>) -> Vec<([u8; 4], [u8; 4])> {
+fn split_into_32bits_blocks(blocks64bits: Vec<[u8; 8]>) -> Vec<([u8; 4], [u8; 4])> {
     let mut blocks32bits = Vec::new();
 
     for block in blocks64bits.into_iter() {
         let splitted_block= block.split_at(4);
-        ///We can use unwrap because we are sure that we split 64bits array into two 32bits array
+
+        //We can use unwrap because we are sure that we split 64bits array into two 32bits array
         let l: [u8; 4] = splitted_block.0.try_into().unwrap();
         let r: [u8; 4] = splitted_block.1.try_into().unwrap();
         blocks32bits.push((l, r))
@@ -166,7 +170,7 @@ pub fn split_into_32bits_blocks(blocks64bits: Vec<[u8; 8]>) -> Vec<([u8; 4], [u8
     blocks32bits
 }
 
-pub fn do_permutations(block: &mut [u8; 8]) {
+fn do_permutations(block: &mut [u8; 8]) {
 
     let mut new_block: [u8; 8] = [0u8; 8];
     for (new_position, old_position) in TABLE1.iter().enumerate() {
@@ -183,7 +187,7 @@ pub fn do_permutations(block: &mut [u8; 8]) {
     block[0..].copy_from_slice(&new_block);
 }
 
-pub fn permuted_choice1(secret_key64bits: [u8; 8]) -> [u8; 7] {
+fn permuted_choice1(secret_key64bits: [u8; 8]) -> [u8; 7] {
 
     let mut key_56bits = [0u8; 7];
 
@@ -203,7 +207,7 @@ pub fn permuted_choice1(secret_key64bits: [u8; 8]) -> [u8; 7] {
     key_56bits
 }
 
-pub fn key_as_28bits_values(secret_key56bits: [u8; 7]) -> (u32, u32) {
+fn key_as_28bits_values(secret_key56bits: [u8; 7]) -> (u32, u32) {
 
     let l : u32 = (secret_key56bits[0] as u32) << 20
         | (secret_key56bits[1] as u32) << 12
@@ -218,7 +222,7 @@ pub fn key_as_28bits_values(secret_key56bits: [u8; 7]) -> (u32, u32) {
     (l, r)
 }
 
-pub fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
+fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
     let mut key56bits: [u8; 7] = [0u8; 7];
 
     let left = secret_keys28bits.0;
@@ -235,7 +239,7 @@ pub fn key_as_56bits_value(secret_keys28bits: (u32, u32)) -> [u8; 7] {
     key56bits
 }
 
-pub fn get_16_keys(mut keys_28bits_values: (u32, u32)) -> Vec<[u8; 6]> {
+fn get_16_keys(mut keys_28bits_values: (u32, u32)) -> Vec<[u8; 6]> {
 
     let mut keys = Vec::new();
 
@@ -260,7 +264,7 @@ pub fn get_16_keys(mut keys_28bits_values: (u32, u32)) -> Vec<[u8; 6]> {
 fn into_48bits_key(key_56bits: [u8; 7]) -> [u8; 6] {
     let mut key48bits: [u8; 6] = [0u8; 6];
 
-    for (new_position, mut old_position) in PC2_TABLE.iter().enumerate() {
+    for (new_position, old_position) in PC2_TABLE.iter().enumerate() {
 
         let original_byte_position = old_position / 8;
         let original_bit_position = old_position % 8;
@@ -292,7 +296,7 @@ fn r_to_48bits(prev_r: [u8; 4]) -> [u8; 6] {
     new_r
 }
 
-pub fn r_xor_48bits_key(r: [u8; 6], secret_key: [u8; 6]) -> [u8; 6] {
+fn r_xor_48bits_key(r: [u8; 6], secret_key: [u8; 6]) -> [u8; 6] {
 
     let mut xor_result = [0u8; 6];
 
@@ -305,7 +309,7 @@ pub fn r_xor_48bits_key(r: [u8; 6], secret_key: [u8; 6]) -> [u8; 6] {
 
 ///After XOR we need to group our 48bits value into 6bits groups
 /// I use array of 8bits, but two high_order bits are always 00
-pub fn into_groups_by_6bits(xor_result: [u8; 6]) -> [u8; 8] {
+fn into_groups_by_6bits(xor_result: [u8; 6]) -> [u8; 8] {
 
     let xor_result_as_48bits_num: u64 = (xor_result[0] as u64) << 40
         | (xor_result[1] as u64) << 32
@@ -334,8 +338,7 @@ fn split_into_groups(xor_result: u64) -> [u8; 8] {
 fn groups_by_6bits_into_32bits(groups: [u8; 8]) -> [u8; 4] {
 
     let mut final_value = [0u8; 4];
-    let mut final_32bits_value = 0u32;
-    let mut shift:usize = 24;
+    let final_32bits_value;
     let mut bytes = [0u8; 8];
 
     for (s_box_index, byte) in groups.into_iter().enumerate() {
@@ -368,7 +371,7 @@ fn groups_by_6bits_into_32bits(groups: [u8; 8]) -> [u8; 4] {
     final_value
 }
 
-pub fn permute_32bits_r(key: [u8; 4]) -> [u8; 4] {
+fn permute_32bits_r(key: [u8; 4]) -> [u8; 4] {
     let mut new_key = [0u8; 4];
 
     for (new_position, old_position) in TABLE5.iter().enumerate() {
@@ -397,42 +400,79 @@ fn xor_left_and_right(left: [u8; 4], result_r: [u8; 4]) -> [u8; 4] {
 }
 
 ///Takes old L and R, returns L + 1, R + 1, until L15 and R15
-pub fn do_round(mut old_l: &mut [u8; 4], mut old_r: &mut [u8; 4], secret_key: [u8; 6]) {
+fn do_round(old_l: &mut [u8; 4], old_r: &mut [u8; 4], secret_key: [u8; 6]) {
 
-    ///Expand right part to 48 bits
+    //Expand right part to 48 bits
     let r48bits = r_to_48bits(*old_r);
 
-    ///After xor secret key and r48bits
+    //After xor secret key and r48bits
     let r48bits_after_xor = r_xor_48bits_key(r48bits, secret_key);
 
-    ///Split into 8 groups by 6bits
+    //Split into 8 groups by 6bits
     let groups_by_6bits = into_groups_by_6bits(r48bits_after_xor);
 
-    ///Concat into 32 bits by S_BOX table
+    //Concat into 32 bits by S_BOX table
     let r32bits = groups_by_6bits_into_32bits(groups_by_6bits);
 
-    ///Permute by Table5
+    //Permute by Table5
     let r32bits_permuted = permute_32bits_r(r32bits);
 
-    ///Xor left part and mutated right part
+    //Xor left part and mutated right part
     let final_r = xor_left_and_right(*old_l, r32bits_permuted);
 
     *old_l = *old_r;
     *old_r = final_r;
 }
 
-pub fn encrypt(data_to_encrypt: Vec<([u8; 4], [u8; 4])>, secret_keys48bits: &Vec<[u8; 6]>) -> Vec<[u8; 8]> {
+/// This function encrypt the given data by providing 64bits secret key.
+///
+/// # Returns
+/// * `Vec<[u8; 8]>` - Encrypted data as vec of 64bits blocks.
+/// * `([u8; 4], [u8; 4])` - Initial L and R, this needs to decrypt data in the future.
+/// * `[[u8; 6]; 16]` - Formed 16 secret keys, this also needs to decrypt data in the future.
+pub fn encrypt(data_to_encrypt: String, secret_key: String)
+    -> (
+        Vec<[u8; 8]>,
+        ([u8; 4], [u8; 4]),
+        [[u8; 6]; 16]
+    )
+{
+
+    //Convert bytes string into 64bits blocks, then we are doing permutations with TABLE1
+    let mut blocks64bits = split_data_into_64bits_blocks(Vec::from(data_to_encrypt));
+    for mut block in blocks64bits.iter_mut() {
+        do_permutations(&mut block);
+    }
+
+    //Split 64bits blocks into two 32bits blocks(L and R), then we will mutate them
+    let l_and_r: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(blocks64bits);
+
+    //Needs for decrypting data
+    let initial_l_and_r = l_and_r[0];
+
+    //secret key -> 64bits blocks
+    let secret_key_64bits = key_into_64bits(Vec::from(secret_key));
+
+    //secret key must be interpreted as 56bits blocks
+    let secret_key_56bits = permuted_choice1(secret_key_64bits);
+
+    //secret key as two 28bits value (L... and R...) needs to create 16 48bits_key
+    let secret_key28bits: (u32, u32) = key_as_28bits_values(secret_key_56bits);
+
+    //Our formed 16 secret keys
+    let secret_keys48bits: Vec<[u8; 6]> = get_16_keys(secret_key28bits);
+
     let mut encrypted_data_blocks: Vec<[u8; 8]> = Vec::new();
 
-    for (block_index, mut data_block) in data_to_encrypt.into_iter().enumerate() {
+    for mut data_block in l_and_r.into_iter() {
 
         for step in 0..16 {
-            let secret_key = &secret_keys48bits[0];
+            let secret_key = &secret_keys48bits[step];
 
             do_round(&mut data_block.0, &mut data_block.1, *secret_key);
         }
 
-        ///Swap L and R, then concatenate to 64 bits
+        //Swap L and R, then concatenate to 64 bits
 
         let mut empty_block = [0u8; 8];
         empty_block[0] = data_block.1[0];
@@ -448,7 +488,10 @@ pub fn encrypt(data_to_encrypt: Vec<([u8; 4], [u8; 4])>, secret_keys48bits: &Vec
         encrypted_data_blocks.push(last_permutation(empty_block));
     }
 
-    encrypted_data_blocks
+    //Needs for decrypting data
+    let copy_of_secret_keys: [[u8; 6]; 16] = secret_keys48bits.try_into().expect("Not 16 keys, unreachable");
+
+    (encrypted_data_blocks, initial_l_and_r, copy_of_secret_keys)
 }
 
 fn last_permutation(block64bits: [u8; 8]) -> [u8; 8] {
