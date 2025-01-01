@@ -1,6 +1,7 @@
 mod encryption;
 mod utils;
 
+use std::collections::HashMap;
 use std::process::exit;
 use crate::encryption::{do_permutations, get_16_keys, key_as_28bits_values, PC1, permuted_choice1, split_into_32bits_blocks, split_into_64bits_blocks, TABLE1};
 use crate::utils::{read_env_args, read_file};
@@ -32,7 +33,7 @@ fn main() {
                     ///secret key as two 28bits value (L... and R...) needs to create 16 48bits_key
                     let secret_key28bits: Vec<(u32, u32)> = key_as_28bits_values(secret_key);
 
-                    let secret_keys48bits: Vec<[u8; 6]> = get_16_keys(secret_key28bits);
+                    let secret_keys48bits: HashMap<usize, Vec<[u8; 6]>> = get_16_keys(secret_key28bits);
 
                     println!("16 keys: {:?}", secret_keys48bits)
 

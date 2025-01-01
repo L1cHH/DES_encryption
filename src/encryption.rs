@@ -24,6 +24,7 @@ pub static PC1: [usize; 56] = [
     21, 13,  5, 28, 20, 12,  4
 ];
 
+///Used for shifting 28bits part of 56bits key
 pub static SHIFT_TABLE: [usize; 16] = [
     1, 1, 2, 2,
     2, 2, 2, 2,
@@ -31,6 +32,7 @@ pub static SHIFT_TABLE: [usize; 16] = [
     2, 2, 2, 1
 ];
 
+///Used for creating one of sixteen 48bits secret keys (from 56bits to 48bits)
 static PC2_TABLE: [usize; 48] = [
     13, 16, 10, 23,  0,  4,  2, 27,
     14,  5, 20,  9, 22, 18, 11,  3,
@@ -38,6 +40,18 @@ static PC2_TABLE: [usize; 48] = [
     40, 51, 30, 36, 46, 54, 29, 39,
     50, 44, 32, 47, 43, 48, 38, 55,
     33, 52, 45, 41, 49, 35, 28, 31,
+];
+
+///R... from 32bits to 48bits
+static E_BIT_SELECTION_TABLE: [usize; 48] = [
+    31,  0,  1,  2,  3,  4,
+    3,  4,  5,  6,  7,  8,
+    7,  8,  9, 10, 11, 12,
+    11, 12, 13, 14, 15, 16,
+    15, 16, 17, 18, 19, 20,
+    19, 20, 21, 22, 23, 24,
+    23, 24, 25, 26, 27, 28,
+    27, 28, 29, 30, 31,  0,
 ];
 
 pub fn split_into_64bits_blocks(bytes_string: Vec<u8>) -> Vec<[u8; 8]> {
@@ -200,4 +214,60 @@ fn into_48bits_key(key_56bits: [u8; 7]) -> [u8; 6] {
     }
 
     key48bits
+}
+
+pub fn r_to_48bits(prev_r: [u8; 4]) -> [u8; 6] {
+    let mut new_r: [u8; 6] = [0u8; 6];
+
+    for (new_position, old_position) in E_BIT_SELECTION_TABLE.iter().enumerate() {
+        let original_byte_position = old_position / 8;
+        let original_bit_position = old_position % 8;
+
+        let new_byte_position = new_position / 8;
+        let new_bit_position = new_position % 8;
+
+        let bit_value = prev_r[original_byte_position] >> (7 - original_bit_position) & 1;
+        new_r[new_byte_position] |= bit_value << (7 - new_bit_position);
+    }
+
+    new_r
+}
+
+pub fn r_xor_48bits_key(r: [u8; 6], secret_key: [u8; 6]) -> [u8; 6] {
+
+    let mut xor_result = [0u8; 6];
+
+    for step in 0..6 {
+        xor_result[step] = r[step] ^ secret_key[step]
+    }
+
+    xor_result
+}
+
+///After XOR we need to group our 48bits value into 6bits groups
+/// I use array of 8bits, but two high_order bits are always 00
+pub fn into_groups_by_6bits(xor_result: [u8; 6]) -> [u8; 8] {
+
+    let xor_result_as_48bits_num: u64 = (xor_result[0] as u64) << 40
+        | (xor_result[1] as u64) << 32
+        | (xor_result[2] as u64) << 24
+        | (xor_result[3] as u64) << 16
+        | (xor_result[4] as u64) << 8
+        | (xor_result[5] as u64);
+
+    split_into_groups(xor_result_as_48bits_num)
+}
+
+///Shift our 48bits value to right and multiply(& and) by (0b0011_1111 as u64) and convert to u8
+///also reducing our shift value by 6 after every iteration over array
+fn split_into_groups(xor_result: u64) -> [u8; 8] {
+    let mut groups_by_6bits = [0u8; 8];
+    let mut shift_value = 42;
+
+    for step in 0..8 {
+        groups_by_6bits[step] = ((xor_result >> shift_value) & 0b0011_1111u64) as u8;
+        shift_value -= 6
+    }
+
+    groups_by_6bits
 }
