@@ -14,14 +14,14 @@ pub static TABLE1: [usize; 64] = [
 
 ///This table used for Permuted Choice 1 (after spitting secret key into 64 bits blocks)
 pub static PC1: [usize; 56] = [
-    57, 49, 41, 33, 25, 17, 9,
-    1, 58, 50, 42, 34, 26, 18,
-    10,  2, 59, 51, 43, 35, 27,
-    19, 11,  3, 60, 52, 44, 36,
-    63, 55, 47, 39, 31, 23, 15,
-    7, 62, 54, 46, 38, 30, 22,
-    14,  6, 61, 53, 45, 37, 29,
-    21, 13,  5, 28, 20, 12,  4
+    56, 48, 40, 32, 24, 16, 8,
+    0, 57, 49, 41, 33, 25, 17,
+    9, 1, 58, 50, 42, 34, 26,
+    18, 10, 2, 59, 51, 43, 35,
+    62, 54, 46, 38, 30, 22, 14,
+    6, 61, 53, 45, 37, 29, 21,
+    13, 5, 60, 52, 44, 36, 28,
+    20, 12, 4, 27, 19, 11, 3
 ];
 
 ///Used for shifting 28bits part of 56bits key
@@ -248,8 +248,8 @@ fn get_16_keys(mut keys_28bits_values: (u32, u32)) -> Vec<[u8; 6]> {
         let first_28bits = keys_28bits_values.0;
         let second_28bits = keys_28bits_values.1;
 
-        let new_first_28bits = first_28bits << shift_value | first_28bits >> (8 - shift_value);
-        let new_second_28bits = second_28bits << shift_value | second_28bits >> (8 - shift_value);
+        let new_first_28bits = first_28bits << shift_value | first_28bits >> (28 - shift_value) & 0xFFFFFFFu32;
+        let new_second_28bits = second_28bits << shift_value | second_28bits >> (28 - shift_value) & 0xFFFFFFFu32;
         keys_28bits_values.0 = new_first_28bits;
         keys_28bits_values.1 = new_second_28bits;
 
@@ -392,7 +392,7 @@ fn permute_32bits_r(key: [u8; 4]) -> [u8; 4] {
 fn xor_left_and_right(left: [u8; 4], result_r: [u8; 4]) -> [u8; 4] {
     let mut final_r = [0u8; 4];
 
-    for step in 0..3 {
+    for step in 0..4 {
         final_r[step] = left[step] ^ result_r[step]
     }
 
@@ -405,11 +405,14 @@ fn do_round(old_l: &mut [u8; 4], old_r: &mut [u8; 4], secret_key: [u8; 6]) {
     //Expand right part to 48 bits
     let r48bits = r_to_48bits(*old_r);
 
+
     //After xor secret key and r48bits
     let r48bits_after_xor = r_xor_48bits_key(r48bits, secret_key);
 
+
     //Split into 8 groups by 6bits
     let groups_by_6bits = into_groups_by_6bits(r48bits_after_xor);
+
 
     //Concat into 32 bits by S_BOX table
     let r32bits = groups_by_6bits_into_32bits(groups_by_6bits);
@@ -446,27 +449,23 @@ fn last_permutation(block64bits: [u8; 8]) -> [u8; 8] {
 ///
 /// # Returns
 /// * `Vec<[u8; 8]>` - Encrypted data as vec of 64bits blocks.
-/// * `Vec<([u8; 4], [u8; 4])>` - Initial L's and R's, this needs to decrypt data in the future.
 /// * `[[u8; 6]; 16]` - Formed 16 secret keys, this also needs to decrypt data in the future.
 pub fn encrypt(data_to_encrypt: String, secret_key: String)
     -> (
         Vec<[u8; 8]>,
-        Vec<([u8; 4], [u8; 4])>,
         [[u8; 6]; 16]
     )
 {
 
     //Convert bytes string into 64bits blocks, then we are doing permutations with TABLE1
     let mut blocks64bits = split_data_into_64bits_blocks(Vec::from(data_to_encrypt));
+
     for mut block in blocks64bits.iter_mut() {
         do_permutations(&mut block);
     }
 
     //Split 64bits blocks into two 32bits blocks(L and R), then we will mutate them
     let l_and_r: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(blocks64bits);
-
-    //Needs for decrypting data
-    let initial_l_and_r= l_and_r.clone();
 
     //secret key -> 64bits blocks
     let secret_key_64bits = key_into_64bits(Vec::from(secret_key));
@@ -509,10 +508,17 @@ pub fn encrypt(data_to_encrypt: String, secret_key: String)
     //Needs for decrypting data
     let copy_of_secret_keys: [[u8; 6]; 16] = secret_keys48bits.try_into().expect("Not 16 keys, unreachable");
 
-    (encrypted_data_blocks, initial_l_and_r, copy_of_secret_keys)
+    (encrypted_data_blocks, copy_of_secret_keys)
 }
 
-pub fn decrypt(l_and_r: Vec<([u8; 4], [u8; 4])>, secret_keys: [[u8; 6]; 16]) -> Vec<[u8; 8]> {
+pub fn decrypt(mut encrypted_data: Vec<[u8; 8]>, secret_keys: [[u8; 6]; 16]) -> Vec<[u8; 8]> {
+
+    for mut block in encrypted_data.iter_mut() {
+        do_permutations(&mut block);
+    }
+
+    //Split 64bits blocks into two 32bits blocks(L and R), then we will mutate them
+    let l_and_r: Vec<([u8; 4], [u8; 4])> = split_into_32bits_blocks(encrypted_data);
 
     let mut decrypted_data_blocks: Vec<[u8; 8]> = Vec::new();
 
@@ -520,8 +526,8 @@ pub fn decrypt(l_and_r: Vec<([u8; 4], [u8; 4])>, secret_keys: [[u8; 6]; 16]) -> 
 
         let mut num_of_key = 15;
 
-        for step in 0..16 {
-            let secret_key = &secret_keys[num_of_key];
+        for step in (0..=15).rev() {
+            let secret_key = &secret_keys[step];
 
             do_round(&mut data_block.0, &mut data_block.1, *secret_key);
 

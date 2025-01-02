@@ -13,27 +13,24 @@ fn main() {
 
             match data_to_encrypt {
                 Ok(data) => {
+                    println!("Data to encrypt: {}", data);
 
-                    println!("Raw data: {}", data);
-
-                    let (encrypted_blocks, init_l_and_r, keys) = encrypt(data, secret_key);
+                    let (encrypted_blocks, keys) = encrypt(data, secret_key);
 
                     println!("Encrypted data: {:?}", encrypted_blocks);
 
-                    let decrypted_blocks = decrypt(init_l_and_r, keys);
+                    let decrypted_blocks = decrypt(encrypted_blocks, keys);
 
-                    println!("Decrypted data: {:?}", decrypted_blocks);
-
-                    println!("{}", vec_to_string(decrypted_blocks));
+                    println!("Decrypted data: {}", vec_to_string(decrypted_blocks));
                 }
                 Err(e) => {
-                    eprintln!("Error occurred while reading file {file_path}, error: {e}");
+                    eprintln!("Error occurred while reading the file {file_path}, error: {e}");
                     exit(1)
                 }
             }
         }
         None => {
-            eprintln!("File path was not provided by env args");
+            eprintln!("File path or secret key were not provided by args...\nUse next boilerplate: cargo run --bin name_of_bin_crate -- file_path secret_key");
             exit(1)
         }
     }
